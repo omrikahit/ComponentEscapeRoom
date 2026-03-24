@@ -38,6 +38,8 @@ export default function EscapeRoomBlazor() {
     let faceDetector = null;
     let selfieSegmentation = null;
     let segMask = null;
+    let isModelLoadedLocal = false;
+    let modelFailedLocal = false;
     const offCanvas = document.createElement('canvas');
     offCanvas.width = 800;
     offCanvas.height = 600;
@@ -47,8 +49,8 @@ export default function EscapeRoomBlazor() {
     const initCamera = async () => {
       try {
         setCameraError(false);
-        setIsModelLoaded(false);
-        setModelFailed(false);
+        setIsModelLoaded(false); isModelLoadedLocal = false;
+        setModelFailed(false); modelFailedLocal = false;
 
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         if (!isActive) return;
@@ -57,9 +59,9 @@ export default function EscapeRoomBlazor() {
         // ניסיון לטעון מודל Face Detection של גוגל MediaPipe
         try {
           const fallbackTimer = setTimeout(() => {
-            if (isActive && !isModelLoaded) {
+            if (isActive && !isModelLoadedLocal) {
               console.warn("MediaPipe model loading timed out. Falling back to static photo booth.");
-              setModelFailed(true);
+              setModelFailed(true); modelFailedLocal = true;
             }
           }, 8000);
           if (!window.FaceDetection) {
@@ -105,7 +107,7 @@ export default function EscapeRoomBlazor() {
             await selfieSegmentation.initialize();
           }
           clearTimeout(fallbackTimer);
-          if (isActive) setIsModelLoaded(true);
+          if (isActive) { setIsModelLoaded(true); isModelLoadedLocal = true; }
           const processVideo = async () => {
             if (!isActive) return;
             if (videoRef.current && videoRef.current.readyState >= 2) {
@@ -119,7 +121,7 @@ export default function EscapeRoomBlazor() {
           processVideo();
         } catch (aiError) {
           console.warn("MediaPipe model blocked/failed, falling back to static photo booth.", aiError);
-          if (isActive) setModelFailed(true);
+          if (isActive) { setModelFailed(true); modelFailedLocal = true; }
         }
         // לולאת רינדור לוידאו ואפקטים
         const renderLoop = () => {
@@ -189,7 +191,7 @@ export default function EscapeRoomBlazor() {
           const cx = cw / 2;
           const cy = ch / 2 - 20;
           // ציור האביזרים לפי MediaPipe (אם יש זיהוי פנים)
-          if (targetFaceRef.current && isModelLoaded && !modelFailed) {
+          if (targetFaceRef.current && isModelLoadedLocal && !modelFailedLocal) {
             const detection = targetFaceRef.current;
             const rightEyeRaw = detection.landmarks[0];
             const leftEyeRaw = detection.landmarks[1];
@@ -286,14 +288,14 @@ export default function EscapeRoomBlazor() {
                ctx.fillStyle = 'rgba(245, 158, 11, 0.9)';
                ctx.font = 'bold 22px Arial, sans-serif';
                ctx.textAlign = 'center';
-               if (!isModelLoaded && !modelFailed) {
+               if (!isModelLoadedLocal && !modelFailedLocal) {
                  ctx.fillText('טוען קסם זיהוי פנים...', cx, cy + 200);
                } else {
                  ctx.fillText('מקמו את הפנים באליפסה', cx, cy + 200);
                }
             }
             // הכובע הסטטי מוצג רק כשהמודל נכשל לחלוטין — לא בזמן הטעינה
-            if (modelFailed) {
+            if (modelFailedLocal) {
               const hatYOffset = cy - 140;
               ctx.save();
               ctx.translate(cx, hatYOffset);
