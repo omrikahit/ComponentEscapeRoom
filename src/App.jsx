@@ -43,7 +43,7 @@ export default function EscapeRoomBlazor() {
     offCanvas.height = 600;
     const offCtx = offCanvas.getContext('2d');
     const bgImage = new Image();
-    bgImage.src = '/bg.jpg';
+    bgImage.src = import.meta.env.BASE_URL + 'bg.jpg';
     const initCamera = async () => {
       try {
         setCameraError(false);
